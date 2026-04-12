@@ -62,10 +62,13 @@ export default function Dashboard() {
           <button
             onClick={() => runMut.mutate()}
             disabled={runMut.isPending}
-            className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:text-gray-500 text-white rounded-lg font-medium text-base shadow-sm transition-colors"
+            className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg font-medium text-base shadow-sm transition-colors"
           >
-            {runMut.isPending ? '실행 중...' : '스크리닝 실행'}
+            {runMut.isPending ? '스크리닝 실행 중... (3~5분 소요)' : '스크리닝 실행'}
           </button>
+          {runMut.isPending && (
+            <span className="text-amber-600 text-sm animate-pulse">서버에서 200종목 데이터를 수집 중입니다. 잠시 기다려주세요.</span>
+          )}
           {selectedDate && (
             <button onClick={() => setSelectedDate(null)} className="px-5 py-2.5 bg-white hover:bg-gray-100 text-gray-600 rounded-lg text-base border border-gray-300">
               최신 결과로

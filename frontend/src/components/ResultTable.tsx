@@ -1,5 +1,5 @@
 import type { StockItem } from '../types/stock';
-import { formatNumber, formatPercent, formatMarketCap, formatVolume } from '../utils/formatters';
+import { formatNumber, formatPercent } from '../utils/formatters';
 
 interface Props {
   stocks: StockItem[];
