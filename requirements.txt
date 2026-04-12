@@ -1,0 +1,9 @@
+fastapi==0.128.8
+uvicorn[standard]==0.39.0
+pykrx==1.0.51
+pandas==2.3.3
+numpy==2.0.2
+sqlalchemy==2.0.49
+pydantic==2.12.5
+finance-datareader==0.9.66
+requests==2.32.5

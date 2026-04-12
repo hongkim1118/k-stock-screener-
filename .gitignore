@@ -1,0 +1,9 @@
+venv/
+__pycache__/
+*.pyc
+data/kstock.db
+data/report_*.json
+node_modules/
+frontend/dist/
+.DS_Store
+*.egg-info/
