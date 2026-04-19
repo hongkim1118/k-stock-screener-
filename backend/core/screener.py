@@ -19,17 +19,23 @@ from backend.core.indicators import (
 )
 
 
-def run_full_screening(date: str = None) -> dict:
+def run_full_screening(date: str = None, progress_cb=None) -> dict:
     """
     전체 스크리닝 실행.
+    progress_cb: 진행률 업데이트 콜백 (str) -> None
     Returns: {date, total_screened, results{cond_1_2, cond_1_2_3, cond_1_2_4, cond_1_2_3_4}, counts{...}}
     """
+    def _progress(msg: str):
+        print(msg)
+        if progress_cb:
+            progress_cb(msg)
+
     print("=" * 50)
     print("K-Stock Screener V2 스크리닝 시작")
     print("=" * 50)
 
     # 1. 시총 상위 200종목
-    print("\n[1/4] 시가총액 상위 200종목 조회 중...")
+    _progress("[1/4] 시가총액 상위 200종목 조회 중...")
     top200_df = fetch_top200_tickers(date)
     tickers = top200_df.index.tolist()
     names = {}
@@ -41,18 +47,18 @@ def run_full_screening(date: str = None) -> dict:
     print(f"  → {len(tickers)}종목 조회 완료")
 
     # 2. 일봉 데이터 수집
-    print("\n[2/4] 일봉 데이터 수집 중 (약 2~3분 소요)...")
-    all_data = fetch_all_stock_data(tickers, delay=0.3)
+    _progress(f"[2/4] 일봉 데이터 수집 시작 (약 2~3분 소요, 총 {len(tickers)}종목)")
+    all_data = fetch_all_stock_data(tickers, delay=0.3, progress_cb=progress_cb)
     print(f"  → {len(all_data)}종목 데이터 수집 완료")
 
     # 3. 기술적 지표 계산
-    print("\n[3/4] 기술적 지표 계산 중...")
+    _progress("[3/4] 기술적 지표 계산 중...")
     for ticker in all_data:
         all_data[ticker] = calculate_all_indicators(all_data[ticker])
     print("  → 계산 완료")
 
     # 4. 조건별 스크리닝
-    print("\n[4/4] 조건별 스크리닝 실행 중...")
+    _progress("[4/4] 조건별 스크리닝 실행 중...")
     results = {
         "cond_1_2": [],
         "cond_1_2_3": [],

@@ -18,7 +18,7 @@ from pydantic import BaseModel
 router = APIRouter(prefix="/api")
 
 # 스크리닝 상태 관리
-_screening_status = {"running": False, "progress": "", "last_result": None}
+_screening_status = {"running": False, "progress": "", "last_result": None, "error": None}
 CACHE_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data")
 
 
@@ -89,9 +89,13 @@ def _save_to_db(report: dict, db: Session):
 def _run_screening_thread():
     """백그라운드 스레드에서 스크리닝 실행"""
     _screening_status["running"] = True
-    _screening_status["progress"] = "실행 중..."
+    _screening_status["progress"] = "서버 준비 중..."
+    _screening_status["error"] = None
     try:
-        report = run_full_screening()
+        def _cb(msg: str):
+            _screening_status["progress"] = msg
+        report = run_full_screening(progress_cb=_cb)
+        _screening_status["progress"] = "결과 저장 중..."
         _save_cache(report)
         db = SessionLocal()
         try:
@@ -99,10 +103,14 @@ def _run_screening_thread():
         finally:
             db.close()
         _screening_status["last_result"] = report
-        _screening_status["progress"] = "완료"
+        total_hits = report.get("counts", {}).get("cond_1_2", 0)
+        _screening_status["progress"] = f"완료 ({total_hits}종목 발견)"
     except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
+        print(f"스크리닝 오류: {e}\n{tb}")
         _screening_status["progress"] = f"오류: {e}"
-        print(f"스크리닝 오류: {e}")
+        _screening_status["error"] = str(e)
     finally:
         _screening_status["running"] = False
 
@@ -122,6 +130,7 @@ def api_screening_status():
         "running": _screening_status["running"],
         "progress": _screening_status["progress"],
         "has_result": _screening_status["last_result"] is not None,
+        "error": _screening_status.get("error"),
     }
 
 

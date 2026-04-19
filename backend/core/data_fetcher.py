@@ -107,7 +107,8 @@ def fetch_stock_name(ticker: str) -> str:
 
 
 def fetch_all_stock_data(
-    tickers: list, start_date: str = None, end_date: str = None, delay: float = 0.3
+    tickers: list, start_date: str = None, end_date: str = None, delay: float = 0.3,
+    progress_cb=None,
 ) -> dict:
     """200종목 일봉 데이터 일괄 수집 (딜레이 포함)"""
     if end_date is None:
@@ -116,6 +117,7 @@ def fetch_all_stock_data(
         start_date = get_start_date()
 
     stock_data = {}
+    total = len(tickers)
     for i, ticker in enumerate(tickers):
         try:
             df = fetch_stock_ohlcv(ticker, start_date, end_date)
@@ -124,10 +126,12 @@ def fetch_all_stock_data(
             if delay > 0:
                 time.sleep(delay)
         except Exception as e:
-            print(f"[{i+1}/{len(tickers)}] {ticker} 수집 실패: {e}")
+            print(f"[{i+1}/{total}] {ticker} 수집 실패: {e}")
             continue
 
-        if (i + 1) % 20 == 0:
-            print(f"[{i+1}/{len(tickers)}] 수집 중...")
+        if (i + 1) % 10 == 0:
+            print(f"[{i+1}/{total}] 수집 중...")
+            if progress_cb:
+                progress_cb(f"일봉 데이터 수집 중 ({i+1}/{total})")
 
     return stock_data

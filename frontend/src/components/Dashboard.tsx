@@ -4,6 +4,7 @@ import {
   getLatestScreening, runScreening, getScreeningByDate,
   getScreeningHistory, getWatchlist, addWatchlist, removeWatchlist,
 } from '../services/api';
+import axios from 'axios';
 import MarketSummary from './MarketSummary';
 import ScreeningTabs from './ScreeningTabs';
 import ResultTable from './ResultTable';
@@ -15,6 +16,7 @@ export default function Dashboard() {
   const qc = useQueryClient();
   const [activeTab, setActiveTab] = useState<TabKey>('cond_1_2');
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [progressMsg, setProgressMsg] = useState<string>('');
 
   const { data: report, isLoading, error } = useQuery<ScreeningResult>({
     queryKey: ['screening', selectedDate],
@@ -26,8 +28,17 @@ export default function Dashboard() {
   const { data: watchlist = [] } = useQuery({ queryKey: ['watchlist'], queryFn: getWatchlist });
 
   const runMut = useMutation({
-    mutationFn: runScreening,
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['screening'] }); qc.invalidateQueries({ queryKey: ['history'] }); setSelectedDate(null); },
+    mutationFn: () => runScreening(setProgressMsg),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['screening'] });
+      qc.invalidateQueries({ queryKey: ['history'] });
+      setSelectedDate(null);
+      setProgressMsg('');
+    },
+    onError: (e) => {
+      const msg = axios.isAxiosError(e) ? (e.response?.data?.detail || e.message) : (e as Error).message;
+      setProgressMsg(`실패: ${msg}`);
+    },
   });
 
   const watchlistTickers = new Set(watchlist.map(w => w.ticker));
@@ -64,10 +75,13 @@ export default function Dashboard() {
             disabled={runMut.isPending}
             className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg font-medium text-base shadow-sm transition-colors"
           >
-            {runMut.isPending ? '스크리닝 실행 중... (3~5분 소요)' : '스크리닝 실행'}
+            {runMut.isPending ? '스크리닝 실행 중...' : '스크리닝 실행'}
           </button>
-          {runMut.isPending && (
-            <span className="text-amber-600 text-sm animate-pulse">서버에서 200종목 데이터를 수집 중입니다. 잠시 기다려주세요.</span>
+          {runMut.isPending && progressMsg && (
+            <span className="text-amber-600 text-sm animate-pulse">{progressMsg}</span>
+          )}
+          {!runMut.isPending && progressMsg.startsWith('실패') && (
+            <span className="text-red-600 text-sm">{progressMsg}</span>
           )}
           {selectedDate && (
             <button onClick={() => setSelectedDate(null)} className="px-5 py-2.5 bg-white hover:bg-gray-100 text-gray-600 rounded-lg text-base border border-gray-300">
@@ -82,9 +96,13 @@ export default function Dashboard() {
               <div className="bg-white rounded-xl p-12 border border-gray-200 text-center shadow-sm">
                 <div className="text-5xl mb-4">&#128200;</div>
                 <h3 className="text-xl font-semibold text-gray-800 mb-2">
-                  {error ? '스크리닝 결과가 없습니다' : '아직 스크리닝 결과가 없습니다'}
+                  {runMut.isPending ? '스크리닝 진행 중' : '아직 스크리닝 결과가 없습니다'}
                 </h3>
-                <p className="text-gray-500 text-base">"스크리닝 실행" 버튼을 눌러 시작하세요.</p>
+                <p className="text-gray-500 text-base">
+                  {runMut.isPending
+                    ? (progressMsg || '백엔드에서 데이터 수집 중입니다...')
+                    : '"스크리닝 실행" 버튼을 눌러 시작하세요. (Render 무료 티어에서는 배포 직후 이전 결과가 초기화됩니다)'}
+                </p>
               </div>
             ) : (
               <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
