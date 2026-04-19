@@ -14,12 +14,37 @@ import FinanceDataReader as fdr
 from pykrx import stock
 
 
+_PROBE_TICKER = "005930"  # 삼성전자 — 거래일 판별용
+_latest_date_cache = {"date": None, "checked_at": None}
+
+
 def get_latest_business_date() -> str:
-    """가장 최근 영업일을 YYYYMMDD 형식으로 반환"""
-    today = datetime.now()
-    while today.weekday() >= 5:
-        today -= timedelta(days=1)
-    return today.strftime("%Y%m%d")
+    """가장 최근 거래일을 YYYYMMDD 형식으로 반환 (주말+공휴일 모두 처리).
+
+    pykrx로 삼성전자 일봉을 역순으로 probe하여 실제 거래 데이터가 있는 날짜를 찾음.
+    6시간 동안 결과를 캐싱하여 반복 호출 비용 최소화.
+    """
+    now = datetime.now()
+    cached = _latest_date_cache["checked_at"]
+    if cached and (now - cached) < timedelta(hours=6) and _latest_date_cache["date"]:
+        return _latest_date_cache["date"]
+
+    for i in range(14):
+        d = (now - timedelta(days=i)).strftime("%Y%m%d")
+        try:
+            df = stock.get_market_ohlcv_by_date(d, d, _PROBE_TICKER)
+            if not df.empty:
+                _latest_date_cache["date"] = d
+                _latest_date_cache["checked_at"] = now
+                return d
+        except Exception:
+            continue
+
+    # fallback: 주말만 건너뛰는 기존 로직
+    t = now
+    while t.weekday() >= 5:
+        t -= timedelta(days=1)
+    return t.strftime("%Y%m%d")
 
 
 def get_start_date(months_back: int = 14) -> str:
